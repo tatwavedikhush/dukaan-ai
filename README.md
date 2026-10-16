@@ -1,35 +1,57 @@
-# DukaanAI starter
+# DukaanAI
 
-A polished, dependency-free shop dashboard for a small business owner. It is a vanilla Node.js app with static assets and a client-side add-product form.
+DukaanAI is a reproducible starter for a small-business AI commerce assistant.
+This scaffold contains a FastAPI backend, a SQLAlchemy persistence foundation,
+an extractor interface with a deterministic mock, and a Vite React TypeScript
+placeholder that reports backend health.
 
 ## Requirements
 
-Node.js 20+ (the pinned runtime is in `.nvmrc`). No dependency installation is needed.
+- Python 3.12.8 (`.python-version`)
+- Node.js 22.14.0 (`.nvmrc`)
+- Docker and Docker Compose (recommended)
 
-## Setup and run
+## Local setup
 
 ```bash
-cp .env.example .env
-npm start
+python -m venv .venv
+# Windows: .venv\\Scripts\\activate
+# macOS/Linux: source .venv/bin/activate
+python -m pip install -r requirements.txt
+npm --prefix frontend ci
 ```
 
-Open <http://localhost:3000>. Set `PORT` in `.env` (or the environment) to use another port.
+## Run locally
+
+In one terminal:
+
+```bash
+uvicorn backend.main:app --reload --port 8000
+```
+
+In another:
+
+```bash
+npm --prefix frontend run dev
+```
+
+Open http://localhost:5173. The page calls `/health`; Vite proxies that request
+to the backend at `http://localhost:8000`.
 
 ## Test
 
-The test is fully offline and uses only Node's built-in HTTP/fetch/assert APIs:
-
 ```bash
-npm test
+make test
 ```
 
-It starts the server, requests the main page and JavaScript, and verifies the key dashboard and add-product UI strings.
+This runs the backend pytest and a production TypeScript/Vite build. Tests are
+offline after dependencies have been installed.
 
-## Deploy with Docker
+## Docker Compose
 
 ```bash
-docker build -t dukaanai .
-docker run --rm -p 3000:3000 dukaanai
+docker compose up --build
 ```
 
-Then open <http://localhost:3000>.
+Open http://localhost:5173 and the API health endpoint at
+http://localhost:8000/health. Stop the stack with `Ctrl+C`.
