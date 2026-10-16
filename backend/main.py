@@ -2,10 +2,14 @@
 
 import re
 import unicodedata
+import uuid
+from pathlib import Path
 from typing import Annotated
+from urllib.parse import urlparse
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, status
-from pydantic import BaseModel, Field
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -15,6 +19,22 @@ from .database import create_tables, get_db
 from .models import Product, Shop
 
 app = FastAPI(title="DukaanAI API")
+UPLOADS_DIR = Path(__file__).resolve().parent.parent / "uploads"
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
+
+
+def validate_image_url(value: str | None) -> str | None:
+    if value is None or value == "":
+        return value
+    parsed = urlparse(value)
+    if parsed.scheme in {"http", "https"} and parsed.netloc and not parsed.username and not parsed.password:
+        return value
+    if parsed.scheme == "" and value.startswith("/uploads/"):
+        filename = value.removeprefix("/uploads/")
+        if filename and Path(filename).name == filename and filename not in {".", ".."}:
+            return value
+    raise ValueError("image_url must be an HTTP(S) URL or a local uploaded image reference")
 
 
 class ProductIn(BaseModel):
@@ -25,6 +45,12 @@ class ProductIn(BaseModel):
     description: str = ""
     category: str = Field(default="General", max_length=100)
     variants: list[str] = []
+    image_url: str | None = None
+
+    @field_validator("image_url")
+    @classmethod
+    def validate_image_url_field(cls, value: str | None) -> str | None:
+        return validate_image_url(value)
 
 
 class ProductOut(ProductIn):
@@ -126,6 +152,7 @@ async def extract(slug: str, images: Annotated[list[UploadFile], File()] = [], t
     if text and len(text) > 2000:
         raise HTTPException(400, "Text must be at most 2000 characters")
     image_bytes = []
+    image_urls = []
     allowed = {"image/jpeg", "image/png", "image/webp"}
     for image in images:
         if image.content_type not in allowed:
@@ -134,6 +161,10 @@ async def extract(slug: str, images: Annotated[list[UploadFile], File()] = [], t
         if len(data) > 5 * 1024 * 1024:
             raise HTTPException(413, "Each image must be at most 5 MB")
         image_bytes.append(data)
+        suffix = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}[image.content_type]
+        filename = f"{uuid.uuid4().hex}{suffix}"
+        (UPLOADS_DIR / filename).write_bytes(data)
+        image_urls.append(f"/uploads/{filename}")
     try:
         result = ai.extract_products(image_bytes, text)
     except NotImplementedError as exc:
@@ -142,6 +173,9 @@ async def extract(slug: str, images: Annotated[list[UploadFile], File()] = [], t
         raise HTTPException(502, "Product extraction failed") from exc
     try:
         products = [ProductDraft.model_validate(item) for item in result]
+        for product in products:
+            if product.image_url is None:
+                product.image_url = image_urls[0]
     except Exception as exc:
         raise HTTPException(502, "Extractor returned invalid products") from exc
     return products

@@ -33,5 +33,6 @@ class Product(Base):
     category: Mapped[str] = mapped_column(String(100), nullable=False, default="General")
     variants: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     stock: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    image_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     shop: Mapped[Shop] = relationship(back_populates="products")

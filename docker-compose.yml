@@ -5,10 +5,12 @@ services:
       target: backend
     environment:
       DATABASE_URL: sqlite:///./data/dukaanai.db
+      MOCK_AI: "true"
     ports:
       - "8000:8000"
     volumes:
       - backend-data:/app/data
+      - ./uploads:/app/uploads
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 5s
@@ -23,6 +25,7 @@ services:
       - "5173:5173"
     environment:
       VITE_API_TARGET: http://backend:8000
+      VITE_API_URL: ""
     depends_on:
       backend:
         condition: service_healthy
