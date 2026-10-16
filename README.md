@@ -2,8 +2,8 @@
 
 DukaanAI is a reproducible starter for a small-business AI commerce assistant.
 This scaffold contains a FastAPI backend, a SQLAlchemy persistence foundation,
-an extractor interface with a deterministic mock, and a Vite React TypeScript
-placeholder that reports backend health.
+an extraction pipeline with a deterministic mock/Gemini adapter, and a Vite
+React TypeScript placeholder that reports backend health.
 
 ## Requirements
 
@@ -37,6 +37,30 @@ npm --prefix frontend run dev
 
 Open http://localhost:5173. The page calls `/health`; Vite proxies that request
 to the backend at `http://localhost:8000`.
+
+## API
+
+- `POST /api/shops` with `{"name":"Demo Mart","whatsapp_number":"+911234"}` creates a shop and unique slug.
+- `POST /api/shops/{slug}/extract` accepts 1–5 JPG/PNG/WEBP files under `images` and optional `text`; it returns product drafts without saving them.
+- `POST /api/shops/{slug}/products` with `{"products":[...]}` saves reviewed products.
+- `GET /api/shops/{slug}` returns the shop and saved catalogue.
+- `PUT /api/shops/{slug}/products/{id}` updates a product.
+- `DELETE /api/shops/{slug}/products/{id}` deletes a product.
+
+With `MOCK_AI=true`, a complete local extraction request is:
+
+```bash
+curl -X POST http://localhost:8000/api/shops \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Demo Mart","whatsapp_number":"+911234567890"}'
+
+curl -X POST http://localhost:8000/api/shops/demo-mart/extract \
+  -F 'images=@sample_data/tea.png;type=image/png' \
+  -F 'text=tea and rice'
+```
+
+Extraction is intentionally separate from saving so a future review UI can edit
+drafts before calling the products endpoint.
 
 ## Test
 
