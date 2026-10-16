@@ -3,7 +3,7 @@
 DukaanAI is a reproducible starter for a small-business AI commerce assistant.
 This scaffold contains a FastAPI backend, a SQLAlchemy persistence foundation,
 an extraction pipeline with a deterministic mock/Gemini adapter, and a Vite
-React TypeScript placeholder that reports backend health.
+React TypeScript shop creation, review, and public catalogue flow.
 
 ## Requirements
 
@@ -38,6 +38,12 @@ npm --prefix frontend run dev
 Open http://localhost:5173. The page calls `/health`; Vite proxies that request
 to the backend at `http://localhost:8000`.
 
+## Use the app
+
+1. Open the home page, enter your shop name and WhatsApp number, then create the shop.
+2. Add up to five product photos, describe the products, extract them, review/edit the drafts, and save.
+3. Copy the public shop link and share it; customers can browse the catalogue and order on WhatsApp.
+
 ## API
 
 - `POST /api/shops` with `{"name":"Demo Mart","whatsapp_number":"+911234"}` creates a shop and unique slug.
@@ -68,7 +74,7 @@ drafts before calling the products endpoint.
 make test
 ```
 
-This runs the backend pytest and a production TypeScript/Vite build. Tests are
+This runs the backend pytest, frontend Vitest/React Testing Library tests, and a production TypeScript/Vite build. Tests are
 offline after dependencies have been installed.
 
 ## Docker Compose
