@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from backend.extractors import MockExtractor
+from backend.ai import MockExtractor, parse_price
 from backend.main import app
 
 
@@ -10,7 +10,9 @@ def test_health_endpoint_and_mock_extractor() -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
-    assert MockExtractor().extract("name: Tea\nprice: 12") == {
-        "name": "Tea",
-        "price": "12",
-    }
+    biscuits = MockExtractor().extract([], "biscuits")
+    soaps = MockExtractor().extract([], "soap")
+    assert biscuits != soaps
+    assert parse_price("Rs 499") == 499
+    assert parse_price("₹499/-") == 499
+    assert parse_price("four ninety nine") == 499
