@@ -85,3 +85,31 @@ docker compose up --build
 
 Open http://localhost:5173 and the API health endpoint at
 http://localhost:8000/health. Stop the stack with `Ctrl+C`.
+
+## Demo in 60 seconds
+
+The app is designed to be judge-friendly on a clean machine: no API key is
+needed because the deterministic mock extractor is enabled by default.
+
+1. Start the stack with `docker compose up --build`.
+2. Open http://localhost:5173 and choose **View demo shop** to browse the
+   seeded seven-product catalogue, or create a shop with any name and number.
+3. On the manage page choose **Try it with sample photos**, then choose
+   **Extract products** and review the generated drafts.
+4. Publish the drafts and open the public catalogue link. Customers can use
+   the WhatsApp order buttons from the catalogue.
+
+The demo shop is seeded idempotently at backend startup as
+`/shop/demo-boutique`. Its images are generated locally and are not fetched
+from an external service. To use Gemini instead, set `MOCK_AI=false` and
+provide `GEMINI_API_KEY`; if that provider fails, the UI shows an actionable
+error and the server remains healthy.
+
+![DukaanAI home page](docs/home-screenshot.svg)
+
+![DukaanAI public catalogue](docs/catalogue-screenshot.svg)
+
+For a clean database reset, run `docker compose down -v` followed by
+`docker compose up --build`. The backend repairs the known SQLite schema
+upgrade (`products.image_url`) before seeding, so an old local database cannot
+prevent startup.
