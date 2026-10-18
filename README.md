@@ -1,22 +1,65 @@
 # DukaanAI
 
-DukaanAI is a reproducible starter for a small-business AI commerce assistant.
-This scaffold contains a FastAPI backend, a SQLAlchemy persistence foundation,
-an extraction pipeline with a deterministic mock/Gemini adapter, and a Vite
-React TypeScript shop creation, review, and public catalogue flow.
+DukaanAI is a small-business commerce assistant that turns product photos and
+plain-language descriptions into an editable catalogue, publishes a public
+shop page, and lets customers start orders on WhatsApp. It runs locally with a
+deterministic extractor by default, so a judge does not need an API key.
 
-## Requirements
+## Features
 
-- Python 3.12.8 (`.python-version`)
-- Node.js 22.14.0 (`.nvmrc`)
-- Docker and Docker Compose (recommended)
+- Create shops with stable, readable slugs.
+- Upload up to five product images and describe products in text.
+- Extract draft products with the offline mock extractor or optional Gemini.
+- Review, edit, publish, and preview a catalogue.
+- Browse category filters and order products through WhatsApp.
+- Idempotent seven-product `demo-boutique` seeded on startup.
+- SQLite schema recovery for the known `image_url` upgrade.
 
-## Local setup
+## Demo in 60 seconds
+
+```bash
+docker compose up --build
+```
+
+Open <http://localhost:5173>, click **View demo shop**, and browse
+`/shop/demo-boutique`. To try the creation flow, create a shop, open its
+manage page, click **Try it with sample photos**, extract the three sample
+products, review them, and publish. The demo uses locally generated images and
+`MOCK_AI=true`; no key or network-based AI service is required.
+
+![DukaanAI home page](docs/home-screenshot.svg)
+
+![DukaanAI public catalogue](docs/catalogue-screenshot.svg)
+
+## Architecture
+
+```text
+React/Vite browser ── JSON + multipart ──> FastAPI API
+                                             │
+                                             ├─ SQLAlchemy + SQLite
+                                             ├─ local uploads
+                                             └─ mock extractor / Gemini adapter
+```
+
+The frontend runs in its own container and uses Vite's `/api` proxy for local
+development. The backend creates tables, repairs the supported SQLite schema
+change, creates `uploads/`, and seeds the demo shop during startup.
+
+## Tech stack
+
+- Python 3.12.8, FastAPI, SQLAlchemy, SQLite, pytest
+- Node.js 22.14.0, React, TypeScript, Vite, Vitest, React Testing Library
+- Docker Compose
+
+## Requirements and local setup
+
+Use Python 3.12.8 from `.python-version` and Node.js 22.14.0 from `.nvmrc`.
+Docker and Docker Compose are recommended. For a host-based setup:
 
 ```bash
 python -m venv .venv
-# Windows: .venv\\Scripts\\activate
 # macOS/Linux: source .venv/bin/activate
+# Windows: .venv\\Scripts\\activate
 python -m pip install -r requirements.txt
 npm --prefix frontend ci
 ```
@@ -35,81 +78,66 @@ In another:
 npm --prefix frontend run dev
 ```
 
-Open http://localhost:5173. The page calls `/health`; Vite proxies that request
-to the backend at `http://localhost:8000`.
-
-## Use the app
-
-1. Open the home page, enter your shop name and WhatsApp number, then create the shop.
-2. Add up to five product photos, describe the products, extract them, review/edit the drafts, and save.
-3. Copy the public shop link and share it; customers can browse the catalogue and order on WhatsApp.
-
-## API
-
-- `POST /api/shops` with `{"name":"Demo Mart","whatsapp_number":"+911234"}` creates a shop and unique slug.
-- `POST /api/shops/{slug}/extract` accepts 1–5 JPG/PNG/WEBP files under `images` and optional `text`; it returns product drafts without saving them.
-- `POST /api/shops/{slug}/products` with `{"products":[...]}` saves reviewed products.
-- `GET /api/shops/{slug}` returns the shop and saved catalogue.
-- `PUT /api/shops/{slug}/products/{id}` updates a product.
-- `DELETE /api/shops/{slug}/products/{id}` deletes a product.
-
-With `MOCK_AI=true`, a complete local extraction request is:
-
-```bash
-curl -X POST http://localhost:8000/api/shops \
-  -H 'Content-Type: application/json' \
-  -d '{"name":"Demo Mart","whatsapp_number":"+911234567890"}'
-
-curl -X POST http://localhost:8000/api/shops/demo-mart/extract \
-  -F 'images=@sample_data/tea.png;type=image/png' \
-  -F 'text=tea and rice'
-```
-
-Extraction is intentionally separate from saving so a future review UI can edit
-drafts before calling the products endpoint.
-
-## Test
-
-```bash
-make test
-```
-
-This runs the backend pytest, frontend Vitest/React Testing Library tests, and a production TypeScript/Vite build. Tests are
-offline after dependencies have been installed.
-
-## Docker Compose
+Open <http://localhost:5173>. The API health endpoint is
+<http://localhost:8000/health>. For the reproducible container run, use:
 
 ```bash
 docker compose up --build
 ```
 
-Open http://localhost:5173 and the API health endpoint at
-http://localhost:8000/health. Stop the stack with `Ctrl+C`.
+Reset all container data and verify a clean seed with:
 
-## Demo in 60 seconds
+```bash
+docker compose down -v
+```
 
-The app is designed to be judge-friendly on a clean machine: no API key is
-needed because the deterministic mock extractor is enabled by default.
+## Tests
 
-1. Start the stack with `docker compose up --build`.
-2. Open http://localhost:5173 and choose **View demo shop** to browse the
-   seeded seven-product catalogue, or create a shop with any name and number.
-3. On the manage page choose **Try it with sample photos**, then choose
-   **Extract products** and review the generated drafts.
-4. Publish the drafts and open the public catalogue link. Customers can use
-   the WhatsApp order buttons from the catalogue.
+After installing dependencies, the single supported test command is:
 
-The demo shop is seeded idempotently at backend startup as
-`/shop/demo-boutique`. Its images are generated locally and are not fetched
-from an external service. To use Gemini instead, set `MOCK_AI=false` and
-provide `GEMINI_API_KEY`; if that provider fails, the UI shows an actionable
-error and the server remains healthy.
+```bash
+make test
+```
 
-![DukaanAI home page](docs/home-screenshot.svg)
+It delegates to `scripts/test.sh`, which runs backend pytest, frontend Vitest,
+and the frontend TypeScript/Vite production build. The checks are offline
+after dependencies are installed.
 
-![DukaanAI public catalogue](docs/catalogue-screenshot.svg)
+## Environment variables
 
-For a clean database reset, run `docker compose down -v` followed by
-`docker compose up --build`. The backend repairs the known SQLite schema
-upgrade (`products.image_url`) before seeding, so an old local database cannot
-prevent startup.
+Copy `.env.example` to `.env` only when local overrides are needed:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `DATABASE_URL` | `sqlite:///./data/dukaanai.db` in Compose | SQLAlchemy database URL |
+| `MOCK_AI` | `true` in Compose | Use the deterministic local extractor |
+| `GEMINI_API_KEY` | empty | Optional key when `MOCK_AI=false` |
+
+No key is needed for the default demo. Gemini failures return a clear API
+error; they do not crash the server.
+
+## API overview
+
+- `POST /api/shops` creates a shop.
+- `POST /api/shops/{slug}/extract` returns unsaved product drafts.
+- `POST /api/shops/{slug}/products` publishes reviewed products.
+- `GET /api/shops/{slug}` returns a shop and its catalogue.
+- `PUT` and `DELETE /api/shops/{slug}/products/{id}` edit catalogue items.
+
+## Known limitations
+
+- There is no authentication, payments, analytics, or multilingual support.
+- SQLite and local uploads are intended for demos and small deployments.
+- Gemini is an optional adapter and requires the user's own API key.
+- WhatsApp ordering opens a prefilled external message; it does not process
+  payments or confirm orders.
+
+## What I would build next
+
+I would add shop-owner authentication and permissions, durable image storage,
+order capture/status tracking, and deployment observability before using this
+for production merchants.
+
+## License
+
+MIT; see [LICENSE](LICENSE).

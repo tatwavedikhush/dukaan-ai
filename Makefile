@@ -1,6 +1,7 @@
-.PHONY: test backend-test frontend-build
+.PHONY: test backend-test frontend-test frontend-build
 
-test: backend-test frontend-test frontend-build
+test:
+	./scripts/test.sh
 
 backend-test:
 	python -m pytest backend/tests -q
