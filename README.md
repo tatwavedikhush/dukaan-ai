@@ -23,8 +23,8 @@ docker compose up --build
 
 Open <http://localhost:5173>, click **View demo shop**, and browse
 `/shop/demo-boutique`. To try the creation flow, create a shop, open its
-manage page, click **Try it with sample photos**, extract the three sample
-products, review them, and publish. The demo uses locally generated images and
+manage page, click **Try it with sample photos**, click **Continue to review**,
+review the three sample products, and publish. The demo uses locally generated images and
 `MOCK_AI=true`; no key or network-based AI service is required.
 
 ![DukaanAI home page](docs/home-screenshot.svg)
