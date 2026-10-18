@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 
 class Extractor(Protocol):
-    def extract(self, images: Sequence[bytes], text: str | None = None) -> Sequence[dict]: ...
+    def extract(self, images: Sequence[bytes], text: str | None = None, image_names: Sequence[str] | None = None) -> Sequence[dict]: ...
 
 
 class ExtractionError(RuntimeError):
@@ -74,23 +74,33 @@ def _products(items: Any) -> list[dict]:
 class MockExtractor:
     """Stable local data for demos and offline development."""
 
-    def extract(self, images: Sequence[bytes], text: str | None = None) -> list[dict]:
-        source = (text or "").lower()
-        if "kurta" in source and "red" in source:
-            items = [{"name": "Red Cotton Kurta", "price": "Rs 499", "stock": 10, "category": "Fashion", "variants": ["S", "M", "L", "XL"]}]
-        elif "jeans" in source and "blue" in source:
-            items = [{"name": "Classic Blue Jeans", "price": "Rs 899", "stock": 10, "category": "Fashion", "variants": ["30", "32"]}]
-        elif "namkeen" in source:
-            items = [{"name": "Masala Namkeen", "price": "120", "stock": 2, "category": "Groceries", "description": "Pack of namkeen", "variants": ["2 packs"]}]
-        elif "biscuit" in source or "cookie" in source:
-            items = [{"name": "Parle-G Biscuits", "price": "₹10/-", "stock": 24, "category": "Groceries"},
-                     {"name": "Good Day Cookies", "price": "four ninety nine", "stock": 12, "category": "Groceries"}]
-        elif "soap" in source:
-            items = [{"name": "Neem Soap", "price": "Rs 49", "stock": 18, "category": "Personal Care"},
-                     {"name": "Bath Soap", "price": "₹75/-", "stock": 10, "category": "Personal Care"}]
-        else:
-            items = [{"name": "Masala Tea", "price": "Rs 499", "stock": 15, "category": "Groceries"},
-                     {"name": "Basmati Rice", "price": "₹120/-", "stock": 8, "category": "Groceries"}]
+    def extract(self, images: Sequence[bytes], text: str | None = None, image_names: Sequence[str] | None = None) -> list[dict]:
+        lines = [line.strip() for line in (text or "").splitlines() if line.strip()]
+        items: list[dict] = []
+        for line in lines:
+            source = line.lower()
+            if "kurta" in source:
+                items.append({"name": "Red Cotton Kurta" if "red" in source else "Cotton Kurta", "price": "Rs 499", "stock": 10, "category": "Fashion", "variants": ["S", "M", "L", "XL"]})
+            elif "jeans" in source:
+                items.append({"name": "Classic Blue Jeans" if "blue" in source else "Classic Jeans", "price": "Rs 899", "stock": 10, "category": "Fashion", "variants": re.findall(r"\b(?:30|32|34|36)\b", source) or ["30", "32"]})
+            elif "namkeen" in source:
+                prices = re.findall(r"(?:rs\.?|₹)?\s*(\d+)", source)
+                items.append({"name": "Masala Namkeen", "price": prices[-1] if prices else "120", "stock": 2, "category": "Groceries", "description": "Pack of namkeen", "variants": ["2 packs"]})
+            elif "biscuit" in source or "cookie" in source:
+                items.append({"name": "Parle-G Biscuits", "price": "₹10/-", "stock": 24, "category": "Groceries"})
+            elif "soap" in source:
+                items.append({"name": "Neem Soap", "price": "Rs 49", "stock": 18, "category": "Personal Care"})
+            elif source == "tea":
+                items.append({"name": "Masala Tea", "price": "Rs 499", "stock": 15, "category": "Groceries"})
+        if not items and not images:
+            items = [{"name": "Masala Tea", "price": "Rs 499", "stock": 15, "category": "Groceries"}, {"name": "Basmati Rice", "price": "₹120/-", "stock": 8, "category": "Groceries"}]
+        fallback_names = ["Sample Cotton Top", "Sample Everyday Trousers", "Sample Snack Pack", "Sample Home Essential"]
+        fallback_prices = [399, 699, 120, 249]
+        while len(items) < len(images):
+            index = len(items)
+            filename = (image_names[index] if image_names and index < len(image_names) else "").rsplit("/", 1)[-1]
+            stem = re.sub(r"[-_]+", " ", filename.rsplit(".", 1)[0]).strip().title() if filename else ""
+            items.append({"name": stem or fallback_names[index % len(fallback_names)], "price": fallback_prices[index % len(fallback_prices)], "stock": 10, "category": "General"})
         return _products(items)
 
 
@@ -115,7 +125,7 @@ class GeminiExtractor:
             body = json.loads(response.read())
         return body["candidates"][0]["content"]["parts"][0]["text"]
 
-    def extract(self, images: Sequence[bytes], text: str | None = None) -> list[dict]:
+    def extract(self, images: Sequence[bytes], text: str | None = None, image_names: Sequence[str] | None = None) -> list[dict]:
         for _ in range(2):
             try:
                 return _products(json.loads(self._request(images, text)))
@@ -124,6 +134,6 @@ class GeminiExtractor:
         raise ExtractionError("Product extraction failed")
 
 
-def extract_products(images: Sequence[bytes], text: str | None = None) -> Sequence[dict]:
+def extract_products(images: Sequence[bytes], text: str | None = None, image_names: Sequence[str] | None = None) -> Sequence[dict]:
     extractor: Extractor = MockExtractor() if os.getenv("MOCK_AI", "false").lower() == "true" else GeminiExtractor()
-    return extractor.extract(images, text)
+    return extractor.extract(images, text, image_names)

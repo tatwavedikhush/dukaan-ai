@@ -154,6 +154,7 @@ async def extract(slug: str, images: Annotated[list[UploadFile], File()] = [], t
         raise HTTPException(400, "Text must be at most 2000 characters")
     image_bytes = []
     image_urls = []
+    image_names = []
     allowed = {"image/jpeg", "image/png", "image/webp"}
     for image in images:
         if image.content_type not in allowed:
@@ -162,12 +163,13 @@ async def extract(slug: str, images: Annotated[list[UploadFile], File()] = [], t
         if len(data) > 5 * 1024 * 1024:
             raise HTTPException(413, "Each image must be at most 5 MB")
         image_bytes.append(data)
+        image_names.append(image.filename or "product")
         suffix = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}[image.content_type]
         filename = f"{uuid.uuid4().hex}{suffix}"
         (UPLOADS_DIR / filename).write_bytes(data)
         image_urls.append(f"/uploads/{filename}")
     try:
-        result = ai.extract_products(image_bytes, text)
+        result = ai.extract_products(image_bytes, text, image_names)
     except NotImplementedError as exc:
         raise HTTPException(501, str(exc)) from exc
     except ai.ExtractionError as exc:
@@ -176,9 +178,9 @@ async def extract(slug: str, images: Annotated[list[UploadFile], File()] = [], t
         raise HTTPException(502, "Product extraction failed") from exc
     try:
         products = [ProductDraft.model_validate(item) for item in result]
-        for product in products:
+        for index, product in enumerate(products):
             if product.image_url is None:
-                product.image_url = image_urls[0]
+                product.image_url = image_urls[min(index, len(image_urls) - 1)]
     except Exception as exc:
         raise HTTPException(502, "Extractor returned invalid products") from exc
     return products

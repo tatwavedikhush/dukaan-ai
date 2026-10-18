@@ -2,7 +2,15 @@ import json
 
 import pytest
 
-from backend.ai import GeminiExtractor, ExtractionError, _products, parse_price
+from backend.ai import GeminiExtractor, ExtractionError, MockExtractor, _products, parse_price
+
+
+def test_mock_extractor_returns_one_product_per_sample_image() -> None:
+    images = [b"kurta", b"jeans", b"namkeen"]
+    text = "red kurta 499\nblue jeans Rs 899 sizes 30 32\n2 packs namkeen 120 each"
+    products = MockExtractor().extract(images, text, ["red-kurta.png", "blue-jeans.png", "namkeen-pack.png"])
+    assert len(products) == 3
+    assert [product["name"] for product in products] == ["Red Cotton Kurta", "Classic Blue Jeans", "Masala Namkeen"]
 
 
 def test_partial_product_json_is_rejected() -> None:
