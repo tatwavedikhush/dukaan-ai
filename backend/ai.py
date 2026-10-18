@@ -76,7 +76,13 @@ class MockExtractor:
 
     def extract(self, images: Sequence[bytes], text: str | None = None) -> list[dict]:
         source = (text or "").lower()
-        if "biscuit" in source or "cookie" in source:
+        if "kurta" in source and "red" in source:
+            items = [{"name": "Red Cotton Kurta", "price": "Rs 499", "stock": 10, "category": "Fashion", "variants": ["S", "M", "L", "XL"]}]
+        elif "jeans" in source and "blue" in source:
+            items = [{"name": "Classic Blue Jeans", "price": "Rs 899", "stock": 10, "category": "Fashion", "variants": ["30", "32"]}]
+        elif "namkeen" in source:
+            items = [{"name": "Masala Namkeen", "price": "120", "stock": 2, "category": "Groceries", "description": "Pack of namkeen", "variants": ["2 packs"]}]
+        elif "biscuit" in source or "cookie" in source:
             items = [{"name": "Parle-G Biscuits", "price": "₹10/-", "stock": 24, "category": "Groceries"},
                      {"name": "Good Day Cookies", "price": "four ninety nine", "stock": 12, "category": "Groceries"}]
         elif "soap" in source:

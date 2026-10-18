@@ -15,7 +15,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from . import ai
-from .database import create_tables, get_db
+from .database import create_tables, get_db, seed_demo_boutique
 from .models import Product, Shop
 
 app = FastAPI(title="DukaanAI API")
@@ -97,6 +97,7 @@ def find_shop(slug: str, db: Session) -> Shop:
 @app.on_event("startup")
 def initialize_database() -> None:
     create_tables()
+    seed_demo_boutique(UPLOADS_DIR)
 
 
 @app.get("/health")
@@ -169,6 +170,8 @@ async def extract(slug: str, images: Annotated[list[UploadFile], File()] = [], t
         result = ai.extract_products(image_bytes, text)
     except NotImplementedError as exc:
         raise HTTPException(501, str(exc)) from exc
+    except ai.ExtractionError as exc:
+        raise HTTPException(503, str(exc)) from exc
     except Exception as exc:
         raise HTTPException(502, "Product extraction failed") from exc
     try:
